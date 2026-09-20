@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MySQL visitor counter</title>
+  </head>
+  <body>
+    <h1>MySQL visitor counter</h1>
+    <p><small>Application version 1.0.1</small></p>
+    <p><a href="/documentation.html">Project documentation</a></p>
+    <p>Database time: <strong id="database-time">Loading...</strong></p>
+    <p>Recorded visits: <strong id="views">Loading...</strong></p>
+    <button id="register-visit" type="button">Record a visit</button>
+    <p id="status" role="status"></p>
+
+    <script>
+      const status = document.getElementById("status");
+
+      async function loadData() {
+        const response = await fetch("/api");
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        const data = await response.json();
+        document.getElementById("database-time").innerText = data.database_time;
+        document.getElementById("views").innerText = data.views;
+      }
+
+      document
+        .getElementById("register-visit")
+        .addEventListener("click", async () => {
+          try {
+            const response = await fetch("/api/visit", { method: "POST" });
+            if (!response.ok)
+              throw new Error(`API returned ${response.status}`);
+            const data = await response.json();
+            document.getElementById("views").innerText = data.views;
+            status.innerText = "Visit saved in MySQL.";
+          } catch (error) {
+            status.innerText = `API error: ${error}`;
+          }
+        });
+
+      loadData().catch((error) => {
+        status.innerText = `API error: ${error}`;
+      });
+    </script>
+  </body>
+</html>

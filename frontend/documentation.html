@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Three-tier Rahti project documentation</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        color: #172033;
+        background: #f5f7fb;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 960px;
+        margin: auto;
+        padding: 36px 20px 64px;
+      }
+      header {
+        background: #172033;
+        color: white;
+        padding: 32px;
+        border-radius: 16px;
+      }
+      h1 {
+        margin: 0 0 8px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      section {
+        background: white;
+        margin-top: 20px;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px #17203312;
+      }
+      code {
+        background: #eef1f7;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      pre {
+        overflow-x: auto;
+        background: #172033;
+        color: #e9eefc;
+        padding: 14px;
+        border-radius: 8px;
+      }
+      .placeholder {
+        min-height: 180px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        border: 2px dashed #8aa0c9;
+        border-radius: 10px;
+        color: #4c6184;
+        background: #f8faff;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      .screenshot {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin-top: 16px;
+        border-radius: 10px;
+        border: 1px solid #dbe3f2;
+      }
+      .note {
+        border-left: 4px solid #f0ab24;
+        padding-left: 14px;
+        color: #5e4a1e;
+      }
+      a {
+        color: #125cc5;
+      }
+      header a {
+        color: #b8d5ff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>MySQL Visitor Counter on Rahti</h1>
+        <p>
+          <a href="/">Open application</a> ·
+          <a href="https://github.com/pochkisell/3tierRahti"
+            >GitHub repository</a
+          >
+        </p>
+      </header>
+
+      <section>
+        <h2>1. Application overview</h2>
+        <p>
+          This application demonstrates end-to-end communication across three
+          tiers. The frontend displays the current MySQL server time and a
+          persistent visitor counter. Selecting <em>Record a visit</em> sends a
+          POST request to the backend, which increments and stores the counter
+          in MySQL.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Architecture and communication</h2>
+        <pre>
+Internet → Route → frontend Service → Nginx Pod
+                                  │ /api
+                                  ▼
+                           backend Service → Flask Pod(s) → db Service → MySQL Pod → PVC</pre
+        >
+        <p>
+          Only the frontend is exposed through a public Rahti Route. The
+          frontend calls
+          <code>backend:8000</code>; the backend calls <code>db:3306</code>.
+          These names are internal Kubernetes Services, so Pod IP addresses are
+          never hard-coded.
+        </p>
+        <div class="placeholder">
+          <img
+            src="https://a3s.fi/swift/v1/3tierProject/lfldkbdgfdsgsghbf/itogo.png"
+            class="screenshot"
+            alt="Rahti resources for the three-tier application"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>3. Configuration and secrets</h2>
+        <p>
+          <code>ConfigMap app-config</code> provides non-sensitive settings:
+          <code>DB_HOST</code>, <code>DB_NAME</code> and <code>DB_USER</code>.
+          <code>Secret mysql-secret</code> provides <code>DB_PASSWORD</code> and
+          <code>MYSQL_ROOT_PASSWORD</code>. Password values are not committed to
+          Git.
+        </p>
+        <p class="note">
+          A Secret is intended for sensitive data and access is controlled
+          separately. A ConfigMap is ordinary non-secret configuration.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. Database persistence experiment</h2>
+        <p>
+          <strong>Method:</strong> record a visitor count, delete the MySQL Pod,
+          wait for its replacement, then reload the application.
+        </p>
+        <pre>
+oc delete pod -l app=db
+oc get pods -w</pre
+        >
+        <p>
+          <strong>Evidence to record:</strong> count before restart:
+          <code>[N]</code>; count after restart: <code>[N]</code>; new MySQL
+          Pod: <code>[name]</code>.
+        </p>
+        <p>
+          The data survives because MySQL mounts the PersistentVolumeClaim at
+          <code>/var/lib/mysql</code>. In Docker Compose the volume is local to
+          the Docker host; in Rahti the PVC is a Kubernetes storage resource
+          that survives Pod replacement and is reattached to the replacement
+          Pod.
+        </p>
+        <div class="placeholder">
+          <img
+            src="https://a3s.fi/swift/v1/3tierProject/lfldkbdgfdsgsghbf/persistance_proof.png"
+            class="screenshot"
+            alt="Evidence that the MySQL visitor counter persisted after Pod replacement"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>5. Pod recovery experiment</h2>
+        <pre>
+oc delete pod -l app=backend
+oc get pods -l app=backend -w</pre
+        >
+        <p>
+          <strong>Evidence to record:</strong> deleted Pod
+          <code>[old name]</code>; replacement Pod <code>[new name]</code>.
+        </p>
+        <p>
+          The backend Deployment owns a ReplicaSet. The ReplicaSet continuously
+          maintains the desired number of replicas, so deleting a Pod causes
+          Kubernetes to create a replacement automatically.
+        </p>
+        <div class="placeholder">
+          <img
+            src="https://a3s.fi/swift/v1/3tierProject/lfldkbdgfdsgsghbf/pod_recovery.png"
+            class="screenshot"
+            alt="Backend Pod recovery after manual deletion"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>6. Scaling experiment</h2>
+        <pre>
+oc scale deployment/backend --replicas=3
+oc get pods -l app=backend
+oc get endpoints backend
+oc scale deployment/backend --replicas=1</pre
+        >
+        <p>
+          <strong>Evidence to record:</strong> backend Pods while scaled:
+          <code>[three Pod names]</code>; final replica count: <code>1</code>.
+        </p>
+        <p>
+          The frontend keeps using the stable DNS name <code>backend</code>. The
+          backend Service selects all ready backend Pods and routes requests to
+          their endpoints, without exposing individual Pod IP addresses to the
+          frontend.
+        </p>
+        <div class="placeholder">
+          <img
+            src="https://a3s.fi/swift/v1/3tierProject/lfldkbdgfdsgsghbf/scaling.png"
+            class="screenshot"
+            alt="Backend Deployment scaled to multiple replicas"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>7. Application update and rollout</h2>
+        <p>
+          Application version <code>1.0.0</code> was updated to
+          <code>1.0.1</code>; a new Docker image tag was built and deployed to
+          the frontend Deployment.
+        </p>
+        <p>
+          <strong>Evidence to record:</strong> old frontend Pod
+          <code>[old name]</code>; new frontend Pod <code>[new name]</code>.
+        </p>
+        <p>
+          During a rolling update the Deployment creates a new ReplicaSet and
+          Pod. Once the new Pod is Ready, the Service can route traffic to it;
+          the old Pod is then terminated.
+        </p>
+        <div class="placeholder">
+          <img
+            src="https://a3s.fi/swift/v1/3tierProject/lfldkbdgfdsgsghbf/rolling_update.png"
+            class="screenshot"
+            alt="Frontend rolling update in Rahti"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>8. Problems solved</h2>
+        <ul>
+          <li>Fixed invalid YAML names, keys, ports and indentation.</li>
+          <li>Created a populated Secret instead of an empty Secret.</li>
+          <li>
+            Used a Recreate strategy for the single-replica MySQL Pod with a
+            ReadWriteOnce PVC.
+          </li>
+          <li>
+            Configured Nginx to use writable <code>/tmp</code> directories and
+            port 8080 under Rahti's non-root security policy.
+          </li>
+          <li>
+            Named the frontend Service port so the public Route receives ready
+            endpoints.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>9. Rahti compared with Docker Compose + cPouta</h2>
+        <p>
+          Docker Compose starts related containers and local volumes on one
+          Docker host; networking is configured by the Compose file. In Rahti,
+          desired state is declared as Kubernetes resources: Deployments
+          recreate and update Pods, Services provide stable internal networking
+          and load balancing, a Route exposes only the frontend, and a PVC
+          manages persistent storage independently of a particular Pod. This
+          makes the application managed and recoverable by the platform rather
+          than by manual container restarts.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
