@@ -15,9 +15,21 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
     depends_on:
       database:
         condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   database:
     image: mysql:8.0

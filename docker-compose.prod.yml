@@ -23,8 +23,12 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
     depends_on:
       db:
+        condition: service_healthy
+      cache:
         condition: service_healthy
 
   frontend:
@@ -33,6 +37,14 @@ services:
       - backend
     ports:
       - "80:8080"
+
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   db_data:

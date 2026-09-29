@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Week 5 answers — Three-tier Rahti project</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        color: #172033;
+        background: #f5f7fb;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 960px;
+        margin: auto;
+        padding: 36px 20px 64px;
+      }
+      header {
+        background: #172033;
+        color: white;
+        padding: 32px;
+        border-radius: 16px;
+      }
+      h1 {
+        margin: 0 0 8px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      section {
+        background: white;
+        margin-top: 20px;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px #17203312;
+      }
+      code {
+        background: #eef1f7;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      a {
+        color: #125cc5;
+      }
+      header a {
+        color: #b8d5ff;
+      }
+      .placeholder {
+        min-height: 150px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        border: 2px dashed #8aa0c9;
+        border-radius: 10px;
+        color: #4c6184;
+        background: #f8faff;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Week 5: Part A answers</h1>
+        <p>
+          <a href="/">Open application</a> ·
+          <a href="/documentation.html">Week 4 documentation</a>
+        </p>
+      </header>
+
+      <section>
+        <h2>1. SAML and OAuth</h2>
+        <p>
+          SAML is an XML-based federation standard commonly used for enterprise
+          single sign-on. An identity provider authenticates a user and sends a
+          signed assertion to a service provider, which uses that assertion to
+          establish the user's session. OAuth 2.0 is an authorization framework:
+          it lets a client obtain limited access to a resource on a user's
+          behalf through scoped, time-limited access tokens. OpenID Connect adds
+          an identity layer to OAuth 2.0 for sign-in.
+        </p>
+        <p>
+          A company typically chooses SAML when integrating browser-based
+          applications with an established enterprise identity provider and its
+          single sign-on or federation setup. It chooses OAuth when an
+          application needs delegated API access, such as allowing a service to
+          read selected data from another provider without receiving the user's
+          password. For modern sign-in, OpenID Connect is generally the relevant
+          OAuth-based protocol; OAuth alone is not an authentication protocol.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Web Application Firewall (WAF)</h2>
+        <p>
+          A WAF inspects HTTP and HTTPS requests and applies web-specific rules
+          before requests reach an application. Depending on its rules and
+          configuration, it can detect or block common attack patterns such as
+          SQL injection, cross-site scripting (XSS), malicious request payloads,
+          and some automated abuse. It reduces exposure but does not replace
+          secure application code, authentication, patching, or monitoring;
+          rules can also produce false positives or miss new attacks.
+        </p>
+        <p>
+          For this application, the natural placement is at the public edge,
+          before the Rahti Route forwards traffic to the Nginx frontend. That
+          lets it inspect requests headed to both the frontend and the proxied
+          Flask API while keeping the backend and database Services private. A
+          WAF would not normally sit between the backend and MySQL, because that
+          connection is database traffic rather than HTTP.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. YAML and Kubernetes configuration</h2>
+        <p>
+          YAML is a human-readable data-serialization format often used for
+          configuration. Kubernetes and Rahti manifests use it to describe
+          resources such as Deployments, Services, Routes, ConfigMaps, and
+          Secrets. Its indentation makes nested structures easy to scan, and
+          comments can explain configuration choices. These traits make YAML
+          convenient for infrastructure files that people regularly review and
+          edit.
+        </p>
+        <p>
+          JSON represents the same basic structures with braces, brackets, and
+          quoted keys. It is widely supported by tools and APIs, but is often
+          more verbose to edit by hand and does not support comments in standard
+          JSON. YAML is not a different Kubernetes data model: manifests are
+          parsed into structured data, and many Kubernetes tools also accept
+          JSON. YAML's indentation is significant, so incorrect spacing can
+          change or invalidate a manifest.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. Public APIs and a realistic integration</h2>
+        <p>
+          Examples of public APIs include Open-Meteo for weather forecasts, the
+          REST Countries API for country information, and the Open Library API
+          for book metadata. Before choosing one, a developer should check its
+          licence, rate limits, availability, data freshness, and authentication
+          requirements.
+        </p>
+        <p>
+          A practical addition to this Flask application would be a weather
+          summary endpoint backed by Open-Meteo. The backend could request a
+          forecast for a configured location and return a small, stable response
+          to the frontend. It should set connection and response timeouts,
+          validate the upstream response, and handle provider failures without
+          taking down the visitor counter. If the provider requires an API key,
+          it belongs in a Secret rather than in source code or a ConfigMap.
+        </p>
+      </section>
+
+      <section>
+        <h2>Updated architecture</h2>
+        <pre><code>Internet → Route → frontend Service → Nginx Pod
+                                      │ /api
+                                      ▼
+                               backend Service → Flask Pod(s) ──→ db Service → MySQL Pod → PVC
+                                      │
+                                      └── cache Service → Redis Pod (short-lived cache)</code></pre>
+        <p>
+          The Route still exposes only the frontend. Flask communicates with
+          Redis and MySQL through their internal Services. MySQL remains the
+          durable source of truth; Redis stores only a temporary copy of the
+          <code>/api</code> response.
+        </p>
+      </section>
+
+      <section>
+        <h2>Connection to the Week 5 Redis extension</h2>
+        <p>
+          The application adds Redis as a separate Deployment and Service and
+          uses it to cache a Flask response. Caching can reduce repeated
+          database work, but the application must define when cached data
+          expires or is invalidated. In this visitor-counter example, a
+          successful visit update must not leave a stale cached count visible.
+          If Redis is unavailable, the backend should have a deliberate fallback
+          policy, such as reading from MySQL, and Redis should remain reachable
+          only by the application components that need it.
+        </p>
+      </section>
+
+      <section>
+        <h2>Rahti deployment evidence</h2>
+
+        <h3>Pods</h3>
+        <div class="placeholder">
+          <img src="https://a3s.fi/swift/v1/3tierProject/1.png" />
+        </div>
+
+        <h3>Services</h3>
+        <div class="placeholder">
+          <img src="https://a3s.fi/swift/v1/3tierProject/2.png" />
+        </div>
+
+        <h3>Redis cache</h3>
+        <div class="placeholder">
+          <img src="https://a3s.fi/swift/v1/3tierProject/3.png" />
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
