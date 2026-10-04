@@ -69,6 +69,9 @@
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 18px;
       }
+      .evidence-images {
+        grid-template-columns: 1fr;
+      }
       .card {
         background: #f8faff;
         border: 1px solid #dfe7f5;
@@ -249,10 +252,9 @@ jobs:
       <section>
         <h2>Part B — Hands-On: Automate &amp; Observe Your App</h2>
 
-        <div class="grid">
-          <div class="card">
-            <span class="pill">Workflow</span>
-            <pre>
+        <div class="card">
+          <span class="pill">Workflow</span>
+          <pre>
 name: Build and deploy backend
 on:
   push:
@@ -291,48 +293,21 @@ jobs:
         run: |
           oc login "$RAHTI_SERVER" --token="$RAHTI_TOKEN"
           oc project "$RAHTI_PROJECT"
-          oc set image deployment/backend backend="docker.io/${DOCKERHUB_USERNAME}/backend:${GITHUB_SHA}"</pre
-            >
-          </div>
+          oc set image deployment/backend backend="docker.io/${DOCKERHUB_USERNAME}/backend:${GITHUB_SHA}"</pre>
+        </div>
 
-          <div class="card">
-            <span class="pill">Evidence</span>
+        <div class="card">
+          <span class="pill">Evidence</span>
+          <div class="grid evidence-images">
             <div class="placeholder">
               <img src="https://a3s.fi/swift/v1/3tierProject/week6/git.png" />
             </div>
             <div class="placeholder">
-              <img src="https://a3s.fi/swift/v1/3tierProject/week6/1.png" />
+              <img src="https://a3s.fi/swift/v1/3tierProject/week6/2.png" />
             </div>
           </div>
         </div>
       </section>
-
-      <section>
-        <h2>Probe configuration</h2>
-        <pre>
-livenessProbe:
-  httpGet:
-    path: /api/health
-    port: 8000
-  initialDelaySeconds: 10
-  periodSeconds: 10
-  timeoutSeconds: 2
-  failureThreshold: 3
-
-readinessProbe:
-  httpGet:
-    path: /api/ready
-    port: 8000
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  timeoutSeconds: 2
-  failureThreshold: 2</pre
-        >
-        <div class="placeholder">
-          <img src="https://a3s.fi/swift/v1/3tierProject/week6/2.png" />
-        </div>
-      </section>
-
       <section>
         <h2>Structured logging</h2>
         <pre>
