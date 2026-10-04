@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: pochkisell/frontend:rahti-v6
+          image: pochkisell/frontend:rahti-v8
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

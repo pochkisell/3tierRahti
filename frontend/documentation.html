@@ -52,6 +52,7 @@
       }
       .placeholder {
         min-height: 180px;
+        min-width: 0;
         display: grid;
         place-items: center;
         text-align: center;
@@ -61,6 +62,15 @@
         background: #f8faff;
         padding: 16px;
         box-sizing: border-box;
+        overflow: hidden;
+      }
+      .placeholder img {
+        display: block;
+        max-width: 100%;
+        max-height: 70vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
       }
       .screenshot {
         display: block;

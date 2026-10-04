@@ -4,6 +4,8 @@ metadata:
   name: cache
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: cache
@@ -15,6 +17,7 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          args: ["--save", "", "--appendonly", "no"]
           ports:
             - containerPort: 6379
           readinessProbe:
