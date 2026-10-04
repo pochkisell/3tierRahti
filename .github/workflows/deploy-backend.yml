@@ -1,0 +1,40 @@
+name: Build and deploy backend
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+
+      - uses: redhat-actions/oc-installer@v1
+        with:
+          oc_version: "4.16"
+
+      - name: Deploy to Rahti
+        env:
+          RAHTI_SERVER: ${{ secrets.RAHTI_SERVER }}
+          RAHTI_TOKEN: ${{ secrets.RAHTI_TOKEN }}
+          RAHTI_PROJECT: ${{ secrets.RAHTI_PROJECT }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          oc login "$RAHTI_SERVER" --token="$RAHTI_TOKEN"
+          oc project "$RAHTI_PROJECT"
+          oc set image deployment/backend backend="docker.io/${DOCKERHUB_USERNAME}/backend:${GITHUB_SHA}"

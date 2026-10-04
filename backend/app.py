@@ -1,10 +1,11 @@
 import json
 import logging
 import os
+import time
 
 import redis
 import mysql.connector
-from flask import Flask, jsonify
+from flask import Flask, g, jsonify, request
 
 app = Flask(__name__)
 
@@ -24,6 +25,25 @@ cache = redis.Redis(
 )
 CACHE_KEY = 'visitor-counter:api'
 CACHE_TTL_SECONDS = 10
+
+
+@app.before_request
+def start_request_timer():
+    g.request_started_at = time.perf_counter()
+
+
+@app.after_request
+def log_request(response):
+    duration_ms = round((time.perf_counter() - g.request_started_at) * 1000, 2)
+    app.logger.info(json.dumps({
+        'event': 'http_request',
+        'method': request.method,
+        'path': request.path,
+        'status': response.status_code,
+        'duration_ms': duration_ms,
+    }))
+    return response
+
 
 def get_connection():
     return mysql.connector.connect(
@@ -51,6 +71,25 @@ def ensure_schema(cursor):
 @app.get('/api/health')
 def health():
     return {'status': 'ok'}
+
+
+@app.get('/api/ready')
+def ready():
+    try:
+        conn = get_connection()
+        try:
+            cur = conn.cursor()
+            try:
+                cur.execute('SELECT 1')
+                cur.fetchone()
+            finally:
+                cur.close()
+        finally:
+            conn.close()
+    except mysql.connector.Error:
+        app.logger.exception('Database readiness check failed')
+        return jsonify(status='unavailable'), 503
+    return jsonify(status='ready')
 
 
 @app.get('/api')
